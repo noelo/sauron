@@ -39,6 +39,17 @@ class Settings(BaseSettings):
         default="gpt-3.5-turbo", description="Model name for LLM API"
     )
 
+    # Reddit Configuration (optional, for PRAW library)
+    reddit_client_id: Optional[str] = Field(
+        default=None, description="Reddit API client ID for PRAW"
+    )
+    reddit_client_secret: Optional[str] = Field(
+        default=None, description="Reddit API client secret for PRAW"
+    )
+    reddit_user_agent: str = Field(
+        default="ContentAggregator/1.0", description="User agent for Reddit API"
+    )
+
     # Storage Configuration
     data_dir: Path = Field(default=Path("./data"), description="Path to data directory")
     articles_subdir: str = Field(

@@ -7,6 +7,9 @@ beautifulsoup4>=4.12.0
 # LLM
 openai>=1.6.0
 
+# Reddit API
+praw>=7.7.1
+
 # Storage & Utils
 portalocker>=2.8.0
 pydantic>=2.5.0
