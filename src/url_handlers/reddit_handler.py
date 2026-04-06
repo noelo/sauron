@@ -22,6 +22,49 @@ class RedditHandler(URLHandler):
         domain = self._get_domain(url)
         return domain in self.DOMAINS
 
+    def _resolve_redirect_url(self, url: str) -> str:
+        """Resolve Reddit URL by extracting Location header from 301 response.
+
+        Reddit uses auto-generated unique URLs that redirect (301) to the actual URL.
+        This method performs an HTTP GET with redirect following disabled and
+        extracts the Location header to get the actual URL.
+
+        Args:
+            url: The potentially shortened/redirecting Reddit URL
+
+        Returns:
+            The resolved URL (original if no redirect or Location header not found)
+        """
+        try:
+            headers = {
+                "User-Agent": "ContentAggregator/1.0 (Bot for content aggregation)"
+            }
+            # Perform HEAD request with redirects disabled to capture 301
+            response = requests.head(
+                url, headers=headers, timeout=10, allow_redirects=False
+            )
+
+            # Check if we got a redirect (301) with Location header
+            if response.status_code in (301, 302, 307, 308):
+                location = response.headers.get("Location")
+                if location:
+                    self.logger.info(
+                        "reddit_url_redirect_resolved",
+                        original_url=url,
+                        resolved_url=location,
+                        status_code=response.status_code,
+                    )
+                    return location
+
+            # If no redirect, return original URL
+            return url
+
+        except Exception as e:
+            self.logger.warning(
+                "reddit_redirect_resolution_failed", url=url, error=str(e)
+            )
+            return url
+
     def handle(self, url: str) -> ExtractedContent:
         """Extract content from Reddit URL.
 
@@ -33,7 +76,10 @@ class RedditHandler(URLHandler):
         """
         self.logger.info("handling_reddit_url", url=url)
 
-        parsed = urlparse(url)
+        # Resolve redirect if URL is a shortened/redirecting URL
+        resolved_url = self._resolve_redirect_url(url)
+
+        parsed = urlparse(resolved_url)
         path_parts = parsed.path.strip("/").split("/")
 
         if len(path_parts) < 2:

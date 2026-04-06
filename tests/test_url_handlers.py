@@ -155,6 +155,88 @@ class TestRedditHandler:
         assert handler.can_handle("https://github.com/user/repo") is False
         assert handler.can_handle("https://x.com/user") is False
 
+    @pytest.fixture
+    def mock_redirect_response(self):
+        """Mock response for testing Reddit redirect URL resolution."""
+
+        class MockResponse:
+            def __init__(self, status_code, location=None):
+                self.status_code = status_code
+                self.headers = {"Location": location} if location else {}
+
+        return MockResponse
+
+    def test_resolve_redirect_url_extracts_location_header(
+        self, handler, mock_redirect_response, monkeypatch
+    ):
+        """Test that shortened Reddit URLs are resolved via Location header.
+
+        Reddit uses auto-generated unique URLs that redirect (301) to actual URLs.
+        URL: https://www.reddit.com/r/aiagents/s/PrLmHBkwK6
+        Should resolve to: https://www.reddit.com/r/aiagents/comments/1sdvq9t/this_opensource_claude_code_setup_is_actually
+        """
+        short_url = "https://www.reddit.com/r/aiagents/s/PrLmHBkwK6"
+        expected_redirect = "https://www.reddit.com/r/aiagents/comments/1sdvq9t/this_opensource_claude_code_setup_is_actually"
+
+        def mock_head(url, **kwargs):
+            if url == short_url:
+                return mock_redirect_response(301, expected_redirect)
+            return mock_redirect_response(200)
+
+        import requests
+
+        monkeypatch.setattr(requests, "head", mock_head)
+
+        resolved_url = handler._resolve_redirect_url(short_url)
+
+        assert resolved_url == expected_redirect, (
+            f"Expected URL to resolve to {expected_redirect}, but got {resolved_url}"
+        )
+
+    def test_handle_uses_resolved_url_for_shortened_reddit_urls(
+        self, handler, mock_redirect_response, monkeypatch
+    ):
+        """Test that handler uses resolved URL when processing shortened Reddit URLs.
+
+        Verifies the full flow: a shortened URL is resolved and then processed
+        using the resolved path components.
+        """
+        short_url = "https://www.reddit.com/r/aiagents/s/PrLmHBkwK6"
+        resolved_url = "https://www.reddit.com/r/aiagents/comments/1sdvq9t/this_opensource_claude_code_setup_is_actually"
+
+        import requests
+
+        def mock_head(url, **kwargs):
+            if url == short_url:
+                return mock_redirect_response(301, resolved_url)
+            return mock_redirect_response(200)
+
+        monkeypatch.setattr(requests, "head", mock_head)
+
+        # Mock the API fetch to avoid actual network calls
+        def mock_fetch_post_via_api(self, url, subreddit, post_id, title_slug=None):
+            from src.models import ExtractedContent
+
+            return ExtractedContent(
+                url=url,
+                title=f"Test Post in r/{subreddit}",
+                author="u/testuser",
+                content=f"Test content for post {post_id}",
+                domain="reddit.com",
+                word_count=5,
+                extraction_method="reddit_handler_api",
+            )
+
+        monkeypatch.setattr(
+            RedditHandler, "_fetch_post_via_api", mock_fetch_post_via_api
+        )
+
+        result = handler.handle(short_url)
+
+        # The result should be based on the resolved URL path
+        assert result.extraction_method == "reddit_handler_api"
+        assert result.domain == "reddit.com"
+
 
 class TestFallbackHandler:
     """Test suite for FallbackHandler."""
