@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en"><!--
+
+   █████            ███████                 ███                        ███
+ ███               ███                      ███                        ███
+███                ███                      ███                        ███
+███      ███  ███  ███        ▐█████████▌   ███████     ██████     ███████ 
+███████▌  ▐█▌▐█▌   ███████   ▐██▌ ███ ▐██▌  ███   ███  ▐█▌  ▐█▌  ███   ███ 
+███        ▐██▌    ███       ███  ███  ███  ███    ███ ████████ ███    ███
+███       ▐█▌▐█▌   ███       ███  ███  ███  ███   ███  ▐█▌       ███   ██▌
+███      ███  ███   ███████  ███  ███  ███   ██████     ▐████▌   ▐██████▌
+███
+███   A better way to embed posts on Discord, Telegram, and more.
+███   Worker build fixtweet-main-c4609d8-2026-04-05T21:35:33
+
+-->
+  <head>
+    <link rel="canonical" href="https://x.com/karpathy/status/2039805659525644595" />
+    <meta property="og:url" content="https://x.com/karpathy/status/2039805659525644595" />
+    <meta property="twitter:site" content="@karpathy" />
+    <meta property="twitter:creator" content="@karpathy" />
+    <meta property="theme-color" content="#6363ff" />
+    <meta property="twitter:title" content="Andrej Karpathy (@karpathy)" />
+    <meta http-equiv="refresh" content="0;url=https://x.com/karpathy/status/2039805659525644595" />
+    <meta property="og:image"
+      content="https://pbs.twimg.com/profile_images/1296667294148382721/9Pr6XrPB_200x200.jpg" />
+    <meta property="twitter:image" content="0" />
+    <link rel="apple-touch-icon"
+      href="https://pbs.twimg.com/profile_images/1296667294148382721/9Pr6XrPB_200x200.jpg" />
+    <meta property="twitter:card" content="undefined" />
+    <meta property="og:title" content="Andrej Karpathy (@karpathy)" />
+    <meta property="og:description"
+      content="LLM Knowledge Bases
+
+Something I&#39;m finding very useful recently: using LLMs to build personal knowledge bases for various topics of research interest. In this way, a large fraction of my recent token throughput is going less into manipulating code, and more into manipulating knowledge (stored as markdown and images). The latest LLMs are quite good at it. So:
+
+Data ingest:
+I index source documents (articles, papers, repos, datasets, images, etc.) into a raw/ directory, then I use an LLM to incrementally &#34;compile&#34; a wiki, which is just a collection of .md files in a directory structure. The wiki includes summaries of all the data in raw/, backlinks, and then it categorizes data into concepts, writes articles for them, and links them all. To convert web articles into .md files I like to use the Obsidian Web Clipper extension, and then I also use a hotkey to download all the related images to local so that my LLM can easily reference them.
+
+IDE:
+I use Obsidian as the IDE &#34;frontend&#34; where I can view the raw data, the the compiled wiki, and the derived visualizations. Important to note that the LLM writes and maintains all of the data of the wiki, I rarely touch it directly. I&#39;ve played with a few Obsidian plugins to render and view data in other ways (e.g. Marp for slides).
+
+Q&A:
+Where things get interesting is that once your wiki is big enough (e.g. mine on some recent research is ~100 articles and ~400K words), you can ask your LLM agent all kinds of complex questions against the wiki, and it will go off, research the answers, etc. I thought I had to reach for fancy RAG, but the LLM has been pretty good about auto-maintaining index files and brief summaries of all the documents and it reads all the important related data fairly easily at this ~small scale.
+
+Output:
+Instead of getting answers in text/terminal, I like to have it render markdown files for me, or slide shows (Marp format), or matplotlib images, all of which I then view again in Obsidian. You can imagine many other visual output formats depending on the query. Often, I end up &#34;filing&#34; the outputs back into the wiki to enhance it for further queries. So my own explorations and queries always &#34;add up&#34; in the knowledge base.
+
+Linting:
+I&#39;ve run some LLM &#34;health checks&#34; over the wiki to e.g. find inconsistent data, impute missing data (with web searchers), find interesting connections for new article candidates, etc., to incrementally clean up the wiki and enhance its overall data integrity. The LLMs are quite good at suggesting further questions to ask and look into.
+
+Extra tools:
+I find myself developing additional tools to process the data, e.g. I vibe coded a small and naive search engine over the wiki, which I both use directly (in a web ui), but more often I want to hand it off to an LLM via CLI as a tool for larger queries. 
+
+Further explorations:
+As the repo grows, the natural desire is to also think about synthetic data generation + finetuning to have your LLM &#34;know&#34; the data in its weights instead of just context windows.
+
+TLDR: raw data from a given number of sources is collected, then compiled by an LLM into a .md wiki, then operated on by various CLIs by the LLM to do Q&A and to incrementally enhance the wiki, and all of it viewable in Obsidian. You rarely ever write or edit the wiki manually, it&#39;s the domain of the LLM. I think there is room here for an incredible new product instead of a hacky collection of scripts." />
+    <meta property="og:site_name" content="FixupX" />
+    <link href='https://assets.fxembed.com/logos/fixupx.svg' rel='icon' sizes='svgxsvg'
+      type='image/svg+xml'>
+    <link href='https://assets.fxembed.com/logos/fixupx64.png' rel='icon' sizes='64x64'
+      type='image/png'>
+    <link href='https://assets.fxembed.com/logos/fixupx48.png' rel='icon' sizes='48x48'
+      type='image/png'>
+    <link href='https://assets.fxembed.com/logos/fixupx32.png' rel='icon' sizes='32x32'
+      type='image/png'>
+    <link href='https://assets.fxembed.com/logos/fixupx24.png' rel='icon' sizes='24x24'
+      type='image/png'>
+    <link href='https://assets.fxembed.com/logos/fixupx16.png' rel='icon' sizes='16x16'
+      type='image/png'>
+    <link rel="alternate"
+      href="https://fixupx.com/owoembed?text=%F0%9F%92%AC%202.4K%20%20%20%F0%9F%94%81%205.8K%20%20%20%E2%9D%A4%EF%B8%8F%2049.5K%20%20%20%F0%9F%91%81%EF%B8%8F%2015.96M&status=2039805659525644595&author=karpathy"
+      type="application/json+oembed" title="Andrej Karpathy">
+  </head>
+  <body></body>
+</html>
