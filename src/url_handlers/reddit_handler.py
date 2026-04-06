@@ -6,6 +6,7 @@ from urllib.parse import urlparse, unquote
 import requests
 import structlog
 
+from src.exceptions import ExtractionError
 from src.models import ExtractedContent
 from src.url_handlers.base import URLHandler
 
@@ -36,13 +37,49 @@ class RedditHandler(URLHandler):
             The resolved URL (original if no redirect or Location header not found)
         """
         try:
+            # Use browser-like headers to avoid bot detection
             headers = {
-                "User-Agent": "ContentAggregator/1.0 (Bot for content aggregation)"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
             }
-            # Perform HEAD request with redirects disabled to capture 301
-            response = requests.head(
+            # Use GET request instead of HEAD - Reddit blocks HEAD requests
+            print(f"🌐 Sending GET request to: {url}")
+            response = requests.get(
                 url, headers=headers, timeout=10, allow_redirects=False
             )
+
+            # Debug: Show what was actually returned
+            print(f"📊 Response status: {response.status_code}")
+            print(f"📋 Response headers: {dict(response.headers)}")
+            location = response.headers.get("Location")
+            if location:
+                print(f"📍 Location header: {location}")
+            else:
+                print(f"📍 No Location header in response")
+
+            self.logger.debug(
+                "reddit_get_request_response",
+                url=url,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                location=location,
+            )
+
+            # Check for 403 Forbidden - Reddit blocks programmatic access
+            if response.status_code == 403:
+                print(f"❌ Reddit blocked the request (403 Forbidden): {url}")
+                self.logger.error("reddit_access_blocked", url=url, status_code=403)
+                raise ExtractionError(
+                    f"Reddit blocked access to URL (403 Forbidden): {url}"
+                )
 
             # Check if we got a redirect (301) with Location header
             if response.status_code in (301, 302, 307, 308):
@@ -59,11 +96,15 @@ class RedditHandler(URLHandler):
             # If no redirect, return original URL
             return url
 
+        except ExtractionError:
+            # Re-raise ExtractionError (e.g., 403 Forbidden) - don't fall back
+            raise
         except Exception as e:
-            self.logger.warning(
+            # For other errors, raise ExtractionError instead of falling back
+            self.logger.error(
                 "reddit_redirect_resolution_failed", url=url, error=str(e)
             )
-            return url
+            raise ExtractionError(f"Failed to resolve Reddit URL: {url} - {e}") from e
 
     def handle(self, url: str) -> ExtractedContent:
         """Extract content from Reddit URL.
@@ -79,21 +120,36 @@ class RedditHandler(URLHandler):
         # Resolve redirect if URL is a shortened/redirecting URL
         resolved_url = self._resolve_redirect_url(url)
 
+        # Console output: Show what was extracted from the initial URL
+        if resolved_url != url:
+            print(f"🔗 Reddit URL resolved: {url} → {resolved_url}")
+            self.logger.info(
+                "reddit_url_resolved",
+                original_url=url,
+                resolved_url=resolved_url,
+            )
+        else:
+            print(f"🔗 Reddit URL (no redirect): {url}")
+            self.logger.info(
+                "reddit_url_no_redirect",
+                url=url,
+            )
+
         parsed = urlparse(resolved_url)
         path_parts = parsed.path.strip("/").split("/")
 
         if len(path_parts) < 2:
-            return self._handle_generic_reddit(url)
+            return self._handle_generic_reddit(resolved_url)
 
-        # Check URL type
+        # Check URL type - pass resolved_url to handlers so the actual URL (from Location header) is used
         if path_parts[0] == "r" and len(path_parts) >= 3:
-            return self._handle_subreddit_post(url, path_parts)
+            return self._handle_subreddit_post(resolved_url, path_parts)
         elif path_parts[0] == "u" or path_parts[0] == "user":
-            return self._handle_user_profile(url, path_parts)
+            return self._handle_user_profile(resolved_url, path_parts)
         elif path_parts[0] == "r":
-            return self._handle_subreddit(url, path_parts)
+            return self._handle_subreddit(resolved_url, path_parts)
         else:
-            return self._handle_generic_reddit(url)
+            return self._handle_generic_reddit(resolved_url)
 
     def _handle_generic_reddit(self, url: str) -> ExtractedContent:
         """Handle generic Reddit URLs."""

@@ -160,14 +160,24 @@ class WebContentExtractor:
                 logger.info("url_handler_selected", url=url, handler=handler_name)
                 try:
                     content = handler.handle(url)
+                    # Console output: Print first 100 chars of extracted text
+                    text_preview = content.content[:100] if content.content else ""
+                    if len(content.content) > 100:
+                        text_preview += "..."
+                    print(
+                        f"📄 Extracted text preview ({len(content.content)} chars): {text_preview}"
+                    )
                     logger.info(
                         "extraction_successful",
                         url=url,
                         handler=handler_name,
                         method=content.extraction_method,
+                        content_length=len(content.content) if content.content else 0,
                     )
                     return content
                 except Exception as e:
+                    # Console logging: Print retrieval error
+                    print(f"❌ Extraction failed for {url}: {str(e)}")
                     logger.error(
                         "handler_failed",
                         url=url,

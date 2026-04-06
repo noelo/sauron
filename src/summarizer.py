@@ -107,12 +107,14 @@ Please provide a summary of this article."""
 
         try:
             response = self.client.chat.completions.create(
+                model=self.settings.llm_model,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}}
             )
 
             summary_text = response.choices[0].message.content.strip()
@@ -164,12 +166,14 @@ Please provide a summary of this article."""
 
         try:
             response = await async_client.chat.completions.create(
+                model=self.settings.llm_model,
                 messages=[
                     {"role": "system", "content": self.SYSTEM_PROMPT},
                     {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
+                chat_template_kwargs={"enable_thinking": False},
             )
 
             summary_text = response.choices[0].message.content.strip()

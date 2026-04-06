@@ -117,20 +117,57 @@ class URLProcessor:
 
         try:
             # Step 1: Validate
+            print(f"🔍 [{job.id[:8]}] Step 1/4: Validating URL: {job.url}")
+            logger.info(
+                "processing_step_validate",
+                job_id=job.id,
+                url=job.url,
+                step=1,
+                total_steps=4,
+            )
             if not self._validate_url(job.url):
                 raise ValueError(f"Invalid or duplicate URL: {job.url}")
 
             # Step 2: Extract content
+            print(f"📥 [{job.id[:8]}] Step 2/4: Extracting content from: {job.url}")
+            logger.info(
+                "processing_step_extract",
+                job_id=job.id,
+                url=job.url,
+                step=2,
+                total_steps=4,
+            )
             self.logger.info("extracting_content", job_id=job.id, url=job.url)
             extracted = self.extractor.extract(job.url)
 
             # Step 3: Generate summary
+            print(
+                f"🤖 [{job.id[:8]}] Step 3/4: Generating summary for: {extracted.title or 'Untitled'}"
+            )
+            logger.info(
+                "processing_step_summarize",
+                job_id=job.id,
+                url=job.url,
+                step=3,
+                total_steps=4,
+                title=extracted.title,
+            )
             self.logger.info("generating_summary", job_id=job.id, title=extracted.title)
             summary = self.summarizer.summarize(
                 title=extracted.title or "Untitled", content=extracted.content or ""
             )
 
             # Step 4: Store results
+            print(
+                f"💾 [{job.id[:8]}] Step 4/4: Storing results for article: {extracted.title or 'Untitled'}"
+            )
+            logger.info(
+                "processing_step_store",
+                job_id=job.id,
+                url=job.url,
+                step=4,
+                total_steps=4,
+            )
             article_data = self._build_article_data(job, extracted, summary)
             self.storage.save_article(article_data)
 

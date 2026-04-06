@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(
         default=0.3, ge=0.0, le=2.0, description="Temperature for generation"
     )
+    llm_model: str = Field(
+        default="gpt-3.5-turbo", description="Model name for LLM API"
+    )
 
     # Storage Configuration
     data_dir: Path = Field(default=Path("./data"), description="Path to data directory")
