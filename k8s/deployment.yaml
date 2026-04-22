@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sauron
+  namespace: sauron
+  labels:
+    app: sauron
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sauron
+  template:
+    metadata:
+      labels:
+        app: sauron
+    spec:
+      containers:
+        - name: sauron
+          image: sauron:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: sauron-config
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sys; sys.exit(0)"
+            initialDelaySeconds: 30
+            periodSeconds: 60
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sys; sys.exit(0)"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: sauron-data-pvc

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sauron
+  labels:
+    app: sauron
+    name: sauron
