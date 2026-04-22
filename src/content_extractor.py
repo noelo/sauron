@@ -1,11 +1,13 @@
 """Content extraction from web articles."""
 
-import structlog
+import json
+import re
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from urllib.parse import urlparse
 
 import requests
+import structlog
 import trafilatura
 from newspaper import Article as NewspaperArticle
 
@@ -13,6 +15,25 @@ from src.exceptions import ExtractionError
 from src.models import ExtractedContent
 
 logger = structlog.get_logger(__name__)
+
+
+def _extract_github_url(text: str) -> Optional[str]:
+    """Extract github.com URL from text content.
+
+    Looks for URLs matching github.com/owner/repo patterns.
+    Returns the first match found, or None if no GitHub URL is found.
+    """
+    if not text:
+        return None
+
+    # Pattern to match github.com URLs with owner/repo format
+    github_pattern = r"https?://(?:www\.)?github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*"
+
+    match = re.search(github_pattern, text)
+    if match:
+        return match.group(0)
+
+    return None
 
 
 class ContentExtractor(ABC):
@@ -50,11 +71,9 @@ class TrafilaturaExtractor(ContentExtractor):
             if not extracted:
                 raise ExtractionError(f"No content extracted from: {url}")
 
-            import json
-
             data = json.loads(extracted)
 
-            return ExtractedContent(
+            content = ExtractedContent(
                 url=url,
                 title=data.get("title"),
                 author=data.get("author"),
@@ -62,6 +81,16 @@ class TrafilaturaExtractor(ContentExtractor):
                 content=data.get("text", ""),
                 extraction_method="trafilatura",
             )
+
+            # Check for GitHub URL in extracted content
+            github_url = _extract_github_url(content.content)
+            if github_url:
+                content.orig_link = github_url
+                logger.info(
+                    "found_github_url_in_content", url=url, github_url=github_url
+                )
+
+            return content
 
         except Exception as e:
             logger.error("trafilatura_extraction_failed", url=url, error=str(e))
@@ -90,7 +119,7 @@ class NewspaperExtractor(ContentExtractor):
             if article.publish_date:
                 publish_date = article.publish_date.isoformat()
 
-            return ExtractedContent(
+            content = ExtractedContent(
                 url=url,
                 title=article.title,
                 author=", ".join(article.authors) if article.authors else None,
@@ -98,6 +127,16 @@ class NewspaperExtractor(ContentExtractor):
                 content=article.text,
                 extraction_method="newspaper3k",
             )
+
+            # Check for GitHub URL in extracted content
+            github_url = _extract_github_url(content.content)
+            if github_url:
+                content.orig_link = github_url
+                logger.info(
+                    "found_github_url_in_content", url=url, github_url=github_url
+                )
+
+            return content
 
         except Exception as e:
             logger.error("newspaper_extraction_failed", url=url, error=str(e))

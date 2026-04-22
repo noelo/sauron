@@ -60,12 +60,31 @@ class TestGitHubHandler:
         print("=" * 60)
 
     def test_handle_unsupported_github_url(self, handler):
-        """Test that non-repository URLs return placeholder."""
+        """Test that non-repository URLs return placeholder with orig_link."""
         result = handler.handle("https://github.com/noelo/omydb/issues/1")
 
         assert result.title == "GitHub"
         assert result.content == "GitHub URL: https://github.com/noelo/omydb/issues/1"
         assert result.extraction_method == "github_handler_unsupported"
+        # Check that orig_link is populated with the base repo URL
+        assert result.orig_link == "https://github.com/noelo/omydb"
+
+    def test_handle_unsupported_github_url_no_path_parts(self, handler):
+        """Test that URLs with insufficient path parts don't have orig_link."""
+        result = handler.handle("https://github.com/noelo")
+
+        assert result.title == "GitHub"
+        assert result.extraction_method == "github_handler_unsupported"
+        # No orig_link since there's no repo
+        assert result.orig_link is None
+
+    def test_handle_github_url_includes_orig_link_for_repo(self, handler):
+        """Test that repository URLs (owner/repo) don't need orig_link."""
+        result = handler.handle("https://github.com/noelo/omydb")
+
+        # For actual repo URLs, orig_link is not set (the URL itself is the repo)
+        # The orig_link would only be set if extracted content contains a GitHub URL
+        assert result.url == "https://github.com/noelo/omydb"
 
     def test_handle_missing_readme(self, handler):
         """Test handling of repository without README."""
@@ -135,6 +154,44 @@ class TestTwitterHandler:
         print("=" * 60)
         print(result.content)
         print("=" * 60)
+
+    def test_tweet_with_github_url_sets_orig_link(self, handler, mocker):
+        """Test that orig_link is set when tweet content contains a GitHub URL."""
+        # Mock the response to simulate a tweet with GitHub URL
+        mock_response = mocker.MagicMock()
+        mock_response.text = """
+        <html>
+        <head>
+            <meta property="og:description" content="Check out this cool project https://github.com/owner/repo it's awesome!" />
+        </head>
+        </html>
+        """
+        mocker.patch("requests.get", return_value=mock_response)
+
+        result = handler.handle("https://x.com/user/status/123")
+
+        # Check that orig_link is set to the GitHub URL
+        assert result.orig_link == "https://github.com/owner/repo"
+        assert "Check out this cool project" in result.content
+
+    def test_tweet_without_github_url_has_no_orig_link(self, handler, mocker):
+        """Test that orig_link is None when tweet content has no GitHub URL."""
+        # Mock the response to simulate a tweet without GitHub URL
+        mock_response = mocker.MagicMock()
+        mock_response.text = """
+        <html>
+        <head>
+            <meta property="og:description" content="Just a regular tweet without any GitHub links" />
+        </head>
+        </html>
+        """
+        mocker.patch("requests.get", return_value=mock_response)
+
+        result = handler.handle("https://x.com/user/status/123")
+
+        # Check that orig_link is None
+        assert result.orig_link is None
+        assert "Just a regular tweet" in result.content
 
 
 class TestRedditHandler:
@@ -242,6 +299,43 @@ class TestRedditHandler:
             assert "403 Forbidden" in str(e)
             assert short_url in str(e)
 
+    def test_reddit_post_with_github_url_sets_orig_link(self, handler, mocker):
+        """Test that orig_link is set when Reddit post content contains a GitHub URL."""
+        # Mock the requests for URL resolution and PRAW
+        mock_response = mocker.MagicMock()
+        mock_response.status_code = 200  # No redirect
+        mock_response.headers = {}
+        mocker.patch("requests.get", return_value=mock_response)
+
+        # Create a mock submission object
+        mock_submission = mocker.MagicMock()
+        mock_submission.title = "Check out this GitHub repo"
+        mock_submission.author = mocker.MagicMock()
+        mock_submission.author.__str__ = mocker.Mock(return_value="testuser")
+        mock_submission.selftext = (
+            "I found this great project at https://github.com/user/repo - check it out!"
+        )
+        mock_submission.score = 100
+        mock_submission.num_comments = 10
+        mock_submission.subreddit = mocker.MagicMock()
+        mock_submission.subreddit.__str__ = mocker.Mock(return_value="programming")
+        mock_submission.created_utc = 1234567890
+        mock_submission.url = "https://reddit.com/r/programming/comments/abc123"
+        mock_submission.comments = mocker.MagicMock()
+        mock_submission.comments.replace_more = mocker.Mock()
+        mock_submission.comments.list = mocker.Mock(return_value=[])
+
+        # Mock the Reddit client
+        mock_reddit = mocker.MagicMock()
+        mock_reddit.submission.return_value = mock_submission
+        handler._reddit_client = mock_reddit
+
+        result = handler.handle("https://reddit.com/r/programming/comments/abc123")
+
+        # Check that orig_link is set to the GitHub URL
+        assert result.orig_link == "https://github.com/user/repo"
+        assert "Check out this GitHub repo" in result.content
+
 
 class TestFallbackHandler:
     """Test suite for FallbackHandler."""
@@ -255,3 +349,75 @@ class TestFallbackHandler:
         assert handler.can_handle("https://example.com") is True
         assert handler.can_handle("https://unknown-site.com") is True
         assert handler.can_handle("https://example.org/path") is True
+
+    def test_extract_github_url_from_content(self, handler):
+        """Test that _extract_github_url finds GitHub URLs in text."""
+        # Test basic repo URL
+        text = "Check out this repo: https://github.com/user/repo"
+        result = handler._extract_github_url(text)
+        assert result == "https://github.com/user/repo"
+
+        # Test URL with www prefix
+        text = "Found at https://www.github.com/owner/project"
+        result = handler._extract_github_url(text)
+        assert result == "https://www.github.com/owner/project"
+
+        # Test URL with additional path
+        text = "See https://github.com/user/repo/issues/123 for details"
+        result = handler._extract_github_url(text)
+        assert result == "https://github.com/user/repo/issues/123"
+
+        # Test HTTP instead of HTTPS
+        text = "Old link: http://github.com/old/repo"
+        result = handler._extract_github_url(text)
+        assert result == "http://github.com/old/repo"
+
+    def test_extract_github_url_returns_none_when_not_found(self, handler):
+        """Test that _extract_github_url returns None when no GitHub URL exists."""
+        text = "Check out https://example.com or https://gitlab.com/user/repo"
+        result = handler._extract_github_url(text)
+        assert result is None
+
+        # Test empty string
+        result = handler._extract_github_url("")
+        assert result is None
+
+        # Test None
+        result = handler._extract_github_url(None)
+        assert result is None
+
+    def test_extract_github_url_extracts_first_match(self, handler):
+        """Test that _extract_github_url returns the first GitHub URL found."""
+        text = "Multiple repos: https://github.com/first/repo and https://github.com/second/repo"
+        result = handler._extract_github_url(text)
+        assert result == "https://github.com/first/repo"
+
+    def test_handle_sets_orig_link_when_github_url_in_content(self, handler, mocker):
+        """Test that handle() sets orig_link when GitHub URL is found in extracted content."""
+        # Mock the extractors to return content with a GitHub URL
+        mock_result = mocker.patch("src.content_extractor.trafilatura.fetch_url")
+        mock_extract = mocker.patch("src.content_extractor.trafilatura.extract")
+
+        mock_result.return_value = "<html>Content</html>"
+        mock_extract.return_value = (
+            '{"title": "Article", "text": "Check out https://github.com/user/project"}'
+        )
+
+        result = handler.handle("https://example.com/article")
+
+        assert result.orig_link == "https://github.com/user/project"
+        assert result.title == "Article"
+
+    def test_handle_does_not_set_orig_link_when_no_github_url(self, handler, mocker):
+        """Test that handle() does not set orig_link when no GitHub URL is found."""
+        # Mock the extractors to return content without a GitHub URL
+        mock_result = mocker.patch("src.content_extractor.trafilatura.fetch_url")
+        mock_extract = mocker.patch("src.content_extractor.trafilatura.extract")
+
+        mock_result.return_value = "<html>Content</html>"
+        mock_extract.return_value = '{"title": "Article", "text": "Just some regular content without GitHub links."}'
+
+        result = handler.handle("https://example.com/article")
+
+        assert result.orig_link is None
+        assert result.title == "Article"

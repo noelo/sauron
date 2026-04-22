@@ -20,6 +20,7 @@ class ExtractedContent:
     extraction_method: str = ""
     extraction_timestamp: str = ""
     is_paywalled: bool = False
+    orig_link: Optional[str] = None
 
     def __post_init__(self):
         if not self.extraction_timestamp:

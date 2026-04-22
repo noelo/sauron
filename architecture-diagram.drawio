@@ -1,0 +1,202 @@
+<mxfile host="65bd71144e">
+    <diagram id="architecture" name="Content Aggregator Architecture">
+        <mxGraphModel dx="1318" dy="833" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="&lt;b&gt;Content Aggregator Architecture&lt;/b&gt;&lt;br&gt;AI-Powered URL Processing Pipeline" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontFamily=Helvetica;fontColor=#2C3E50;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="20" width="600" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="external-layer" value="External Systems" style="swimlane;startSize=35;fillColor=#E8F4F8;strokeColor=#2980B9;fontStyle=1;fontSize=14;html=1;fontColor=#2C3E50;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="100" width="1300" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="telegram-api" value="&lt;b&gt;Telegram API&lt;/b&gt;&lt;br&gt;(Bot API)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;fontColor=#2C3E50;" parent="external-layer" vertex="1">
+                    <mxGeometry x="200" y="45" width="140" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="llm-api" value="&lt;b&gt;LLM API&lt;/b&gt;&lt;br&gt;(OpenAI/OpenAI-compatible)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;fontColor=#2C3E50;" parent="external-layer" vertex="1">
+                    <mxGeometry x="580" y="45" width="180" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="web-sources" value="&lt;b&gt;Web Sources&lt;/b&gt;&lt;br&gt;(Articles, Twitter, GitHub, Reddit)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=12;fontColor=#2C3E50;" parent="external-layer" vertex="1">
+                    <mxGeometry x="980" y="45" width="160" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="entry-layer" value="Application Entry" style="swimlane;startSize=35;fillColor=#FFF4E6;strokeColor=#E67E22;fontStyle=1;fontSize=14;html=1;fontColor=#2C3E50;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="230" width="1300" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="main-py" value="&lt;b&gt;main.py&lt;/b&gt;&lt;br&gt;ContentAggregator&lt;br&gt;Orchestrates components" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=11;fontColor=#2C3E50;" parent="entry-layer" vertex="1">
+                    <mxGeometry x="580" y="35" width="160" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="core-layer" value="Core Components" style="swimlane;startSize=35;fillColor=#E8F8F5;strokeColor=#1ABC9C;fontStyle=1;fontSize=14;html=1;fontColor=#2C3E50;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="360" width="1300" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="telegram-listener" value="&lt;b&gt;TelegramListener&lt;/b&gt;&lt;br&gt;src/telegram_listener.py&lt;br&gt;&lt;br&gt;• Connects to Telegram API&lt;br&gt;• Filters channel messages&lt;br&gt;• Extracts URLs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;align=left;spacingLeft=10;fontColor=#2C3E50;" parent="core-layer" vertex="1">
+                    <mxGeometry x="60" y="50" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="url-processor" value="&lt;b&gt;URLProcessor&lt;/b&gt;&lt;br&gt;src/url_processor.py&lt;br&gt;&lt;br&gt;• Pipeline orchestration&lt;br&gt;• Retry logic (3 attempts)&lt;br&gt;• Job status tracking&lt;br&gt;• Error handling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;align=left;spacingLeft=10;fontColor=#2C3E50;" parent="core-layer" vertex="1">
+                    <mxGeometry x="300" y="50" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="content-extractor" value="&lt;b&gt;WebContentExtractor&lt;/b&gt;&lt;br&gt;src/content_extractor.py&lt;br&gt;&lt;br&gt;• Routes to handlers&lt;br&gt;• Validates URLs&lt;br&gt;• Extracts metadata&lt;br&gt;• Fallback extraction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;align=left;spacingLeft=10;fontColor=#2C3E50;" parent="core-layer" vertex="1">
+                    <mxGeometry x="540" y="50" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="summarizer" value="&lt;b&gt;OpenAISummarizer&lt;/b&gt;&lt;br&gt;src/summarizer.py&lt;br&gt;&lt;br&gt;• LLM API integration&lt;br&gt;• Prompt engineering&lt;br&gt;• Content truncation&lt;br&gt;• Token management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;align=left;spacingLeft=10;fontColor=#2C3E50;" parent="core-layer" vertex="1">
+                    <mxGeometry x="780" y="50" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="storage" value="&lt;b&gt;JSONStorageBackend&lt;/b&gt;&lt;br&gt;src/storage.py&lt;br&gt;&lt;br&gt;• Atomic file writes&lt;br&gt;• File locking&lt;br&gt;• Processing log&lt;br&gt;• Article retrieval" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;align=left;spacingLeft=10;fontColor=#2C3E50;" parent="core-layer" vertex="1">
+                    <mxGeometry x="1020" y="50" width="180" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="handlers-layer" value="URL Handlers (Strategy Pattern)" style="swimlane;startSize=35;fillColor=#F5EEF8;strokeColor=#9B59B6;fontStyle=1;fontSize=14;html=1;fontColor=#2C3E50;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="590" width="1300" height="190" as="geometry"/>
+                </mxCell>
+                <mxCell id="handler-base" value="&lt;b&gt;URLHandler&lt;/b&gt;&lt;br&gt;(ABC)&lt;br&gt;can_handle()&lt;br&gt;handle()" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="350" y="30" width="140" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="twitter-handler" value="&lt;b&gt;TwitterHandler&lt;/b&gt;&lt;br&gt;x.com, twitter.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="60" y="130" width="140" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="github-handler" value="&lt;b&gt;GitHubHandler&lt;/b&gt;&lt;br&gt;github.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="260" y="130" width="140" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="reddit-handler" value="&lt;b&gt;RedditHandler&lt;/b&gt;&lt;br&gt;reddit.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="460" y="130" width="140" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="fallback-handler" value="&lt;b&gt;FallbackHandler&lt;/b&gt;&lt;br&gt;Generic extraction&lt;br&gt;(trafilatura → newspaper3k)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=10;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="660" y="130" width="160" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="trafilatura" value="&lt;b&gt;Trafilatura&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=10;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="860" y="120" width="90" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="newspaper" value="&lt;b&gt;Newspaper3k&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=10;fontColor=#2C3E50;" parent="handlers-layer" vertex="1">
+                    <mxGeometry x="860" y="160" width="90" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="data-layer" value="Data Layer" style="swimlane;startSize=35;fillColor=#FEF9E7;strokeColor=#F1C40F;fontStyle=1;fontSize=14;html=1;fontColor=#2C3E50;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="800" width="1300" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="models" value="&lt;b&gt;Data Models&lt;/b&gt;&lt;br&gt;src/models.py&lt;br&gt;ExtractedContent&lt;br&gt;SummaryResult" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;align=center;spacingLeft=10;fontColor=#2C3E50;" parent="data-layer" vertex="1">
+                    <mxGeometry x="60" y="45" width="140" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="config" value="&lt;b&gt;Configuration&lt;/b&gt;&lt;br&gt;config/settings.py&lt;br&gt;Pydantic Settings&lt;br&gt;Env var loading" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;align=center;spacingLeft=10;fontColor=#2C3E50;" parent="data-layer" vertex="1">
+                    <mxGeometry x="240" y="45" width="140" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="storage-structure" value="&lt;b&gt;Storage Structure&lt;/b&gt;&lt;br&gt;data/articles/&lt;br&gt;YYYY-MM-DD/{uuid}.json&lt;br&gt;processing_log.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;align=center;spacingLeft=10;fontFamily=Courier New;fontColor=#2C3E50;" parent="data-layer" vertex="1">
+                    <mxGeometry x="420" y="45" width="180" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="exceptions" value="&lt;b&gt;Exceptions&lt;/b&gt;&lt;br&gt;src/exceptions.py&lt;br&gt;Custom error types&lt;br&gt;Error hierarchy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;align=center;spacingLeft=10;fontColor=#2C3E50;" parent="data-layer" vertex="1">
+                    <mxGeometry x="640" y="45" width="140" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="processing-job" value="&lt;b&gt;ProcessingJob&lt;/b&gt;&lt;br&gt;(Dataclass)&lt;br&gt;Job abstraction&lt;br&gt;Queue-compatible" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;align=center;spacingLeft=10;fontColor=#2C3E50;" parent="data-layer" vertex="1">
+                    <mxGeometry x="820" y="45" width="140" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="article-schema" value="&lt;b&gt;Article JSON Schema&lt;/b&gt;&lt;br&gt;id, url, message_id&lt;br&gt;extraction, summary&lt;br&gt;metadata" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=10;align=center;spacingLeft=10;fontColor=#2C3E50;" parent="data-layer" vertex="1">
+                    <mxGeometry x="1000" y="45" width="140" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow-layer" value="Processing Flow" style="swimlane;startSize=35;fillColor=#FDEDEC;strokeColor=#E74C3C;fontStyle=1;fontSize=14;html=1;fontColor=#2C3E50;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="930" width="1300" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow1" value="&lt;b&gt;1. Telegram&lt;br&gt;Message&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E8F4F8;strokeColor=#2980B9;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="60" y="40" width="90" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow2" value="&lt;b&gt;2. Extract&lt;br&gt;URLs&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="200" y="40" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow3" value="&lt;b&gt;3. Create&lt;br&gt;Job&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="320" y="40" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow4" value="&lt;b&gt;4. Fetch &amp;amp;&lt;br&gt;Extract&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="440" y="40" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow5" value="&lt;b&gt;5. AI&lt;br&gt;Summary&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="560" y="40" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow6" value="&lt;b&gt;6. Store&lt;br&gt;JSON&lt;/b&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FEF9E7;strokeColor=#F1C40F;fontSize=10;boundedLbl=1;backgroundOutline=1;size=12;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="680" y="35" width="70" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow7" value="&lt;b&gt;7. Update&lt;br&gt;Log&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="790" y="40" width="80" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="flow8" value="&lt;b&gt;8. Mark&lt;br&gt;Complete&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=10;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="910" y="40" width="90" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="retry-loop" value="&lt;b&gt;Retry Logic&lt;/b&gt;&lt;br&gt;3 attempts&lt;br&gt;Exponential backoff" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=9;dashed=1;fontColor=#2C3E50;" parent="flow-layer" vertex="1">
+                    <mxGeometry x="1040" y="35" width="100" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="f1" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow1" target="flow2" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="f2" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow2" target="flow3" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="f3" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow3" target="flow4" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="f4" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow4" target="flow5" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="f5" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow5" target="flow6" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="f6" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow6" target="flow7" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="f7" style="endArrow=classic;html=1;strokeColor=#2C3E50;strokeWidth=2;" parent="flow-layer" source="flow7" target="flow8" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1" style="endArrow=classic;html=1;strokeColor=#2980B9;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="telegram-api" target="main-py" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2" style="endArrow=classic;html=1;strokeColor=#E67E22;strokeWidth=2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="main-py" target="telegram-listener" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c3" style="endArrow=classic;html=1;strokeColor=#E67E22;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="main-py" target="url-processor" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c4" style="endArrow=classic;html=1;strokeColor=#E67E22;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="main-py" target="storage" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c5" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;" parent="1" source="telegram-listener" target="url-processor" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c6" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;" parent="1" source="url-processor" target="content-extractor" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c7" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;exitX=1;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="url-processor" target="summarizer" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c8" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="url-processor" target="storage" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c9" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;" parent="1" source="content-extractor" target="handler-base" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c10" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="summarizer" target="llm-api" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="c11" style="endArrow=classic;html=1;strokeColor=#6C8EBF;strokeWidth=2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="content-extractor" target="web-sources" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h1" style="endArrow=block;endFill=0;html=1;strokeColor=#B85450;strokeWidth=2;entryX=0.25;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="1" source="twitter-handler" target="handler-base" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h2" style="endArrow=block;endFill=0;html=1;strokeColor=#B85450;strokeWidth=2;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="1" source="github-handler" target="handler-base" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h3" style="endArrow=block;endFill=0;html=1;strokeColor=#B85450;strokeWidth=2;entryX=0.75;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="1" source="reddit-handler" target="handler-base" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h4" style="endArrow=block;endFill=0;html=1;strokeColor=#B85450;strokeWidth=2;entryX=1;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" parent="1" source="fallback-handler" target="handler-base" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h5" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="fallback-handler" target="trafilatura" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="h6" style="endArrow=classic;html=1;strokeColor=#666666;strokeWidth=2;" parent="1" source="fallback-handler" target="newspaper" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="legend" value="&lt;b&gt;Legend&lt;/b&gt;&lt;br&gt;━━ External Systems&amp;nbsp;&amp;nbsp;&amp;nbsp;━━ Application Entry&lt;br&gt;━━ Core Components&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;━━ URL Handlers&lt;br&gt;━━ Data Layer&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;━━ Processing Flow&lt;br&gt;&amp;#8594; Data Flow&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;▸—— Inheritance" style="text;html=1;strokeColor=#666666;fillColor=#F5F5F5;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=10;spacingLeft=10;spacingTop=10;fontColor=#2C3E50;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="930" width="170" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="notes" value="&lt;b&gt;Key Design Patterns:&lt;/b&gt; Strategy Pattern (URL handlers) | Pipeline Pattern (processing) | ABCs (Storage, Summarizer, Extractor) | Job Abstraction (queue-compatible) | Atomic Operations (write-then-move) | Retry Logic (exponential backoff 2^n) | Dependency Injection" style="text;html=1;strokeColor=#D6B656;fillColor=#FFF2CC;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=11;spacingLeft=15;spacingTop=5;spacingBottom=5;fontColor=#2C3E50;" parent="1" vertex="1">
+                    <mxGeometry x="50" y="1060" width="1300" height="50" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

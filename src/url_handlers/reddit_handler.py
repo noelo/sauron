@@ -298,6 +298,7 @@ class RedditHandler(URLHandler):
                 domain="reddit.com",
                 word_count=len(content.split()),
                 extraction_method="reddit_praw",
+                orig_link=self._extract_github_url(content),
             )
 
         except praw.exceptions.PRAWException as e:

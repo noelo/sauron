@@ -34,6 +34,21 @@ class GitHubHandler(URLHandler):
 
         # Only process repository URLs (must have exactly owner/repo)
         if len(path_parts) != 2:
+            # Check for GitHub URL in the URL itself (for cases like /issues, /pulls)
+            if len(path_parts) >= 2:
+                owner = path_parts[0]
+                repo = path_parts[1]
+                # Construct the main repo URL as orig_link
+                return ExtractedContent(
+                    url=url,
+                    title="GitHub",
+                    author=None,
+                    content=f"GitHub URL: {url}",
+                    domain="github.com",
+                    word_count=3,
+                    extraction_method="github_handler_unsupported",
+                    orig_link=f"https://github.com/{owner}/{repo}",
+                )
             return ExtractedContent(
                 url=url,
                 title="GitHub",

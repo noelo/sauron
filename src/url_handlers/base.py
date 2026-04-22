@@ -1,5 +1,6 @@
 """Base URL handler and fallback implementation."""
 
+import re
 from abc import ABC, abstractmethod
 from typing import Optional
 from urllib.parse import urlparse
@@ -30,6 +31,24 @@ class URLHandler(ABC):
     def _get_domain(self, url: str) -> str:
         """Extract domain from URL."""
         return urlparse(url).netloc.lower()
+
+    def _extract_github_url(self, text: str) -> Optional[str]:
+        """Extract github.com URL from text content.
+
+        Looks for URLs matching github.com/owner/repo patterns.
+        Returns the first match found, or None if no GitHub URL is found.
+        """
+        if not text:
+            return None
+
+        # Pattern to match github.com URLs with owner/repo format
+        github_pattern = r"https?://(?:www\.)?github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*"
+
+        match = re.search(github_pattern, text)
+        if match:
+            return match.group(0)
+
+        return None
 
 
 class FallbackHandler(URLHandler):
@@ -65,6 +84,13 @@ class FallbackHandler(URLHandler):
             self.logger.info(
                 "fallback_extraction_successful", url=url, method="trafilatura"
             )
+            # Check for GitHub URL in extracted content
+            github_url = self._extract_github_url(content.content)
+            if github_url:
+                content.orig_link = github_url
+                self.logger.info(
+                    "found_github_url_in_content", url=url, github_url=github_url
+                )
             return content
         except Exception as e:
             self.logger.warning("fallback_primary_failed", url=url, error=str(e))
@@ -75,6 +101,13 @@ class FallbackHandler(URLHandler):
             self.logger.info(
                 "fallback_extraction_successful", url=url, method="newspaper3k"
             )
+            # Check for GitHub URL in extracted content
+            github_url = self._extract_github_url(content.content)
+            if github_url:
+                content.orig_link = github_url
+                self.logger.info(
+                    "found_github_url_in_content", url=url, github_url=github_url
+                )
             return content
         except Exception as e:
             self.logger.error("fallback_extraction_failed", url=url, error=str(e))

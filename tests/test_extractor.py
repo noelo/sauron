@@ -8,6 +8,7 @@ from src.content_extractor import (
     TrafilaturaExtractor,
     NewspaperExtractor,
     WebContentExtractor,
+    _extract_github_url,
 )
 from src.exceptions import ExtractionError
 
@@ -53,6 +54,65 @@ class TestExtractedContent:
 
         assert content.extraction_timestamp == custom_time
 
+    def test_orig_link_field(self):
+        """Test that orig_link field can be set."""
+        content = ExtractedContent(
+            url="https://example.com/article",
+            title="Test",
+            orig_link="https://github.com/user/repo",
+        )
+        assert content.orig_link == "https://github.com/user/repo"
+
+    def test_orig_link_defaults_to_none(self):
+        """Test that orig_link defaults to None."""
+        content = ExtractedContent(url="https://example.com/article")
+        assert content.orig_link is None
+
+
+class TestExtractGitHubUrl:
+    """Test suite for _extract_github_url helper function."""
+
+    def test_extracts_basic_github_url(self):
+        """Test extraction of basic GitHub repo URL."""
+        text = "Check out https://github.com/user/repo"
+        result = _extract_github_url(text)
+        assert result == "https://github.com/user/repo"
+
+    def test_extracts_github_url_with_path(self):
+        """Test extraction of GitHub URL with additional path."""
+        text = "See https://github.com/user/repo/issues/123"
+        result = _extract_github_url(text)
+        assert result == "https://github.com/user/repo/issues/123"
+
+    def test_extracts_http_github_url(self):
+        """Test extraction of HTTP (not HTTPS) GitHub URL."""
+        text = "Old link: http://github.com/owner/project"
+        result = _extract_github_url(text)
+        assert result == "http://github.com/owner/project"
+
+    def test_extracts_www_github_url(self):
+        """Test extraction of www.github.com URL."""
+        text = "Found at https://www.github.com/company/tool"
+        result = _extract_github_url(text)
+        assert result == "https://www.github.com/company/tool"
+
+    def test_returns_none_for_non_github_urls(self):
+        """Test that non-GitHub URLs return None."""
+        text = "Check https://gitlab.com/user/repo or https://bitbucket.org"
+        result = _extract_github_url(text)
+        assert result is None
+
+    def test_returns_none_for_empty_text(self):
+        """Test that empty text returns None."""
+        assert _extract_github_url("") is None
+        assert _extract_github_url(None) is None
+
+    def test_extracts_first_github_url(self):
+        """Test that first GitHub URL is extracted when multiple exist."""
+        text = "Compare https://github.com/first/repo vs https://github.com/second/repo"
+        result = _extract_github_url(text)
+        assert result == "https://github.com/first/repo"
+
 
 class TestWebContentExtractor:
     """Test suite for WebContentExtractor."""
@@ -78,6 +138,34 @@ class TestWebContentExtractor:
         assert result.content == "Article content here."
         assert result.extraction_method == "trafilatura"
 
+    def test_extract_valid_url_with_github_link(self, extractor, mocker):
+        """Test that orig_link is set when extracted content contains GitHub URL."""
+        # Mock the trafilatura extraction with GitHub URL in content
+        mock_result = mocker.patch("src.content_extractor.trafilatura.fetch_url")
+        mock_extract = mocker.patch("src.content_extractor.trafilatura.extract")
+
+        mock_result.return_value = "<html>Content</html>"
+        mock_extract.return_value = '{"title": "Article about code", "text": "Check out https://github.com/author/library for details."}'
+
+        result = extractor.extract("https://example.com/article")
+
+        assert result.title == "Article about code"
+        assert result.orig_link == "https://github.com/author/library"
+
+    def test_extract_valid_url_without_github_link(self, extractor, mocker):
+        """Test that orig_link is None when extracted content has no GitHub URL."""
+        # Mock the trafilatura extraction without GitHub URL
+        mock_result = mocker.patch("src.content_extractor.trafilatura.fetch_url")
+        mock_extract = mocker.patch("src.content_extractor.trafilatura.extract")
+
+        mock_result.return_value = "<html>Content</html>"
+        mock_extract.return_value = '{"title": "Regular Article", "text": "Just some normal content without GitHub links."}'
+
+        result = extractor.extract("https://example.com/article")
+
+        assert result.title == "Regular Article"
+        assert result.orig_link is None
+
     def test_extract_uses_fallback_on_failure(self, extractor, mocker):
         """Test that fallback extractor is used when primary fails."""
         # Mock trafilatura to fail
@@ -98,6 +186,28 @@ class TestWebContentExtractor:
 
         assert result.title == "Fallback Title"
         assert result.extraction_method == "newspaper3k"
+
+    def test_extract_uses_fallback_on_failure_with_github_url(self, extractor, mocker):
+        """Test that fallback extractor also sets orig_link when GitHub URL found."""
+        # Mock trafilatura to fail
+        mock_fetch = mocker.patch("src.content_extractor.trafilatura.fetch_url")
+        mock_fetch.return_value = None  # This will cause failure
+
+        # Mock newspaper to succeed with GitHub URL in content
+        mock_article = mocker.MagicMock()
+        mock_article.title = "Fallback with GitHub"
+        mock_article.text = "See https://github.com/fallback/repo for more"
+        mock_article.authors = ["Author"]
+        mock_article.publish_date = datetime(2026, 1, 1)
+
+        mock_newspaper = mocker.patch("src.content_extractor.NewspaperArticle")
+        mock_newspaper.return_value = mock_article
+
+        result = extractor.extract("https://example.com/article")
+
+        assert result.title == "Fallback with GitHub"
+        assert result.extraction_method == "newspaper3k"
+        assert result.orig_link == "https://github.com/fallback/repo"
 
     def test_extract_invalid_url_raises_error(self, extractor):
         """Test that invalid URLs raise ExtractionError."""

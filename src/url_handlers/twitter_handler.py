@@ -81,6 +81,7 @@ class TwitterHandler(URLHandler):
                     else "twitter.com",
                     word_count=word_count,
                     extraction_method="twitter_fixup_handler",
+                    orig_link=self._extract_github_url(tweet_content),
                 )
             else:
                 # Fallback: use the full HTML if og:description not found
@@ -102,6 +103,7 @@ class TwitterHandler(URLHandler):
                     else "twitter.com",
                     word_count=word_count,
                     extraction_method="twitter_fixup_handler_no_meta",
+                    orig_link=self._extract_github_url(content),
                 )
 
         except requests.exceptions.RequestException as e:
