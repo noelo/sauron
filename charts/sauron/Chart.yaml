@@ -4,6 +4,7 @@ description: A Helm chart for Sauron Content Aggregator
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
+icon: https://raw.githubusercontent.com/noelo/sauron/main/icon.png
 keywords:
   - telegram
   - content-aggregator
