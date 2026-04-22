@@ -1,0 +1,17 @@
+apiVersion: v2
+name: sauron
+description: A Helm chart for Sauron Content Aggregator
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - telegram
+  - content-aggregator
+  - ai
+  - summarizer
+home: https://github.com/noelo/sauron
+sources:
+  - https://github.com/noelo/sauron
+maintainers:
+  - name: sauron-maintainer
+    email: maintainer@example.com

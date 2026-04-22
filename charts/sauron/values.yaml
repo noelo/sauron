@@ -1,0 +1,121 @@
+# Default values for sauron.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- Number of replicas for the deployment
+replicaCount: 1
+
+image:
+  # -- Docker image repository
+  repository: sauron
+  # -- Docker image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# -- Docker registry secret names as an array
+imagePullSecrets: []
+# -- String to partially override fullname template (will maintain the release name)
+nameOverride: ""
+# -- String to fully override fullname template
+fullnameOverride: ""
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# -- Container security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+
+resources:
+  # -- Resource limits
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  # -- Resource requests
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# -- Liveness probe configuration
+livenessProbe:
+  initialDelaySeconds: 30
+  periodSeconds: 60
+  exec:
+    command:
+      - python
+      - -c
+      - "import sys; sys.exit(0)"
+
+# -- Readiness probe configuration
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  exec:
+    command:
+      - python
+      - -c
+      - "import sys; sys.exit(0)"
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}
+
+# Persistence configuration
+persistence:
+  # -- Enable persistence using PVC
+  enabled: true
+  # -- PVC storage size
+  size: 10Gi
+  # -- PVC storage class
+  storageClassName: standard
+  # -- PVC access mode
+  accessMode: ReadWriteOnce
+  # -- PVC annotations
+  annotations: {}
+
+# Application configuration
+config:
+  # -- Log level (DEBUG, INFO, WARNING, ERROR)
+  logLevel: INFO
+  # -- Processing interval in seconds
+  processingInterval: 5
+  # -- Data directory path
+  dataDir: /app/data
+  # -- Articles subdirectory
+  articlesSubdir: articles
+  # -- Log file name
+  logFile: processing_log.json
+
+# Telegram configuration (required)
+telegram:
+  # -- Telegram bot token
+  botToken: ""
+  # -- Telegram channel ID
+  channelId: ""
+
+# LLM configuration
+llm:
+  # -- LLM provider (openai, etc.)
+  provider: openai
+  # -- LLM API key
+  apiKey: ""
+  # -- LLM base URL
+  baseUrl: "https://api.openai.com/v1"
+  # -- LLM model name
+  model: qwen35-9b
+  # -- Maximum tokens for LLM responses
+  maxTokens: 500
+  # -- Temperature for LLM generation
+  temperature: 0.3

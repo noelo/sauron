@@ -1,0 +1,70 @@
+{{- if .Values.telegram.botToken }}
+{{- if and .Values.telegram.channelId .Values.llm.apiKey }}
+1. Get the application logs by running:
+
+   kubectl logs -n {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "sauron.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+2. Check the PVC status:
+
+   kubectl get pvc -n {{ .Release.Namespace }} {{ include "sauron.fullname" . }}-data
+
+3. Verify the application is running:
+
+   kubectl get pods -n {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "sauron.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+{{- else }}
+#############################################################################
+# ERROR: You have not provided all required configuration values!            #
+#############################################################################
+
+The deployment requires the following values:
+{{- if not .Values.telegram.botToken }}
+  - telegram.botToken
+{{- end }}
+{{- if not .Values.telegram.channelId }}
+  - telegram.channelId
+{{- end }}
+{{- if not .Values.llm.apiKey }}
+  - llm.apiKey
+{{- end }}
+
+Please provide them by setting the values when installing:
+
+  helm upgrade --install {{ .Release.Name }} {{ .Chart.Name }} \
+    --namespace {{ .Release.Namespace }} \
+    --set telegram.botToken="YOUR_BOT_TOKEN" \
+    --set telegram.channelId="YOUR_CHANNEL_ID" \
+    --set llm.apiKey="YOUR_API_KEY"
+
+Or create a values file with your configuration:
+
+  # values-override.yaml
+  telegram:
+    botToken: "YOUR_BOT_TOKEN"
+    channelId: "YOUR_CHANNEL_ID"
+  llm:
+    apiKey: "YOUR_API_KEY"
+
+And install with:
+
+  helm upgrade --install {{ .Release.Name }} {{ .Chart.Name }} \
+    --namespace {{ .Release.Namespace }} \
+    -f values-override.yaml
+{{- end }}
+{{- else }}
+#############################################################################
+# WARNING: You have not provided a Telegram bot token!                       #
+#############################################################################
+
+The application will not be able to connect to Telegram.
+
+Please provide it by setting the value when installing:
+
+  helm upgrade --install {{ .Release.Name }} {{ .Chart.Name }} \
+    --namespace {{ .Release.Namespace }} \
+    --set telegram.botToken="YOUR_BOT_TOKEN" \
+    --set telegram.channelId="YOUR_CHANNEL_ID" \
+    --set llm.apiKey="YOUR_API_KEY"
+{{- end }}
+
+For more information, see the chart README.
