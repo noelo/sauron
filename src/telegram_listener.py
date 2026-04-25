@@ -50,6 +50,7 @@ class TelegramListener:
 
         # Shutdown event for graceful stop
         self._shutdown_event = asyncio.Event()
+        self._stopping = False
 
     def _extract_urls(self, text: str) -> List[str]:
         """Extract URLs from message text."""
@@ -212,13 +213,16 @@ class TelegramListener:
 
     async def stop(self) -> None:
         """Stop the Telegram listener."""
+        if self._stopping:
+            return
+        self._stopping = True
+
         self.logger.info("stopping_telegram_listener")
 
         # Signal the run loop to exit
         self._shutdown_event.set()
 
         if self.application:
-            await self.application.updater.stop()
             await self.application.stop()
             await self.application.shutdown()
 
