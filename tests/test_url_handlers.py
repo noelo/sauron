@@ -140,7 +140,7 @@ class TestTwitterHandler:
 
         # Verify extraction succeeded
         assert result.domain == "x.com"
-        assert result.extraction_method == "twitter_fixup_handler"
+        assert result.extraction_method == "twitter_json_api"
         assert len(result.content) > 0
         assert result.word_count > 0
 
@@ -156,41 +156,83 @@ class TestTwitterHandler:
         print(result.content)
         print("=" * 60)
 
-    def test_tweet_with_github_url_sets_orig_link(self, handler, mocker):
-        """Test that orig_link is set when tweet content contains a GitHub URL."""
-        # Mock the response to simulate a tweet with GitHub URL
+    def test_tweet_via_json_api(self, handler, mocker):
+        """Test that handler uses the JSON API to retrieve tweet content."""
         mock_response = mocker.MagicMock()
-        mock_response.text = """
-        <html>
-        <head>
-            <meta property="og:description" content="Check out this cool project https://github.com/owner/repo it's awesome!" />
-        </head>
-        </html>
-        """
+        mock_response.json.return_value = {
+            "status": {
+                "text": "This is the tweet content",
+                "author": {"name": "Test User"},
+            },
+            "thread": [],
+            "code": 200,
+        }
         mocker.patch("requests.get", return_value=mock_response)
 
         result = handler.handle("https://x.com/user/status/123")
 
-        # Check that orig_link is set to the GitHub URL
+        mock_response.json.assert_called_once()
+        assert result.content == "This is the tweet content"
+        assert result.domain == "x.com"
+        assert result.extraction_method == "twitter_json_api"
+        assert result.word_count == 5
+
+    def test_tweet_with_thread(self, handler, mocker):
+        """Test that handler concatenates thread tweets."""
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": {
+                "text": "First tweet",
+                "author": {"name": "Test User"},
+            },
+            "thread": [
+                {"text": "First tweet"},
+                {"text": "Second tweet"},
+                {"text": "Third tweet"},
+            ],
+            "code": 200,
+        }
+        mocker.patch("requests.get", return_value=mock_response)
+
+        result = handler.handle("https://x.com/user/status/456")
+
+        assert "First tweet" in result.content
+        assert "Second tweet" in result.content
+        assert "Third tweet" in result.content
+
+    def test_tweet_with_github_url_sets_orig_link(self, handler, mocker):
+        """Test that orig_link is set when tweet content contains a GitHub URL."""
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": {
+                "text": "Check out this cool project https://github.com/owner/repo it's awesome!",
+                "author": {"name": "Test User"},
+            },
+            "thread": [],
+            "code": 200,
+        }
+        mocker.patch("requests.get", return_value=mock_response)
+
+        result = handler.handle("https://x.com/user/status/123")
+
         assert result.orig_link == "https://github.com/owner/repo"
         assert "Check out this cool project" in result.content
 
     def test_tweet_without_github_url_has_no_orig_link(self, handler, mocker):
         """Test that orig_link is None when tweet content has no GitHub URL."""
-        # Mock the response to simulate a tweet without GitHub URL
         mock_response = mocker.MagicMock()
-        mock_response.text = """
-        <html>
-        <head>
-            <meta property="og:description" content="Just a regular tweet without any GitHub links" />
-        </head>
-        </html>
-        """
+        mock_response.json.return_value = {
+            "status": {
+                "text": "Just a regular tweet without any GitHub links",
+                "author": {"name": "Test User"},
+            },
+            "thread": [],
+            "code": 200,
+        }
         mocker.patch("requests.get", return_value=mock_response)
 
-        result = handler.handle("https://x.com/user/status/123")
+        result = handler.handle("https://x.com/user/status/789")
 
-        # Check that orig_link is None
         assert result.orig_link is None
         assert "Just a regular tweet" in result.content
 
