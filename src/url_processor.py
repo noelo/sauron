@@ -1,8 +1,8 @@
 """URL processing pipeline with Job abstraction."""
 
+import asyncio
 import time
 import uuid
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -81,29 +81,22 @@ class URLProcessor:
         storage: JSONStorageBackend,
         extractor: Optional[WebContentExtractor] = None,
         summarizer: Optional[OpenAISummarizer] = None,
+        max_queue_size: int = 100,
+        workers: int = 1,
     ):
         self.settings = settings
         self.storage = storage
         self.extractor = extractor or WebContentExtractor()
         self.summarizer = summarizer or create_summarizer(settings)
         self.logger = structlog.get_logger(__name__)
+        self._job_queue = asyncio.Queue(maxsize=max_queue_size)
+        self._workers = []
+        self._running = False
+        self._num_workers = workers
+        self._job_results: Dict[str, ProcessingJob] = {}
 
     def process_single(self, job: ProcessingJob) -> ProcessingJob:
-        """
-        Process a single URL through the complete pipeline.
-
-        Pipeline steps:
-        1. Validate URL
-        2. Extract content
-        3. Generate summary
-        4. Store results
-
-        Args:
-            job: ProcessingJob to process
-
-        Returns:
-            Updated ProcessingJob with status and result
-        """
+        """Process a single URL through the complete pipeline."""
         self.logger.info(
             "starting_job_processing",
             job_id=job.id,
@@ -221,12 +214,9 @@ class URLProcessor:
 
     def _validate_url(self, url: str) -> bool:
         """Validate URL and check for duplicates."""
-        # Basic URL validation (extractor will do more thorough check)
         if not url or not url.startswith(("http://", "https://")):
             return False
 
-        # Check for duplicates in recent articles
-        # Note: In production, you might want to check more comprehensively
         recent_articles = self.storage.list_articles(limit=100)
         for article in recent_articles:
             if article.get("url") == url:
@@ -274,11 +264,7 @@ class URLProcessor:
         }
 
     def process_with_retry(self, job: ProcessingJob) -> ProcessingJob:
-        """
-        Process a job with automatic retry on failure.
-
-        Retries up to max_attempts with exponential backoff.
-        """
+        """Process a job with automatic retry on failure."""
         while job.attempts < job.max_attempts:
             job = self.process_single(job)
 
@@ -286,7 +272,7 @@ class URLProcessor:
                 return job
 
             if job.attempts < job.max_attempts:
-                wait_time = 2**job.attempts  # Exponential backoff: 2, 4, 8 seconds
+                wait_time = 2**job.attempts
                 self.logger.info(
                     "retrying_job",
                     job_id=job.id,
@@ -294,6 +280,94 @@ class URLProcessor:
                     wait_seconds=wait_time,
                 )
                 time.sleep(wait_time)
-                job.status = JobStatus.PENDING  # Reset for retry
+                job.status = JobStatus.PENDING
 
         return job
+
+    async def submit(self, job: ProcessingJob) -> str:
+        """Submit a job for async processing. Returns job ID."""
+        await self._job_queue.put(job)
+        self._job_results[job.id] = job
+        self.logger.info(
+            "job_submitted",
+            job_id=job.id,
+            url=job.url,
+            queue_size=self._job_queue.qsize(),
+        )
+        return job.id
+
+    async def _worker_loop(self, worker_id: int) -> None:
+        """Background worker that processes jobs from the queue."""
+        self.logger.info("worker_started", worker_id=worker_id)
+        while self._running:
+            try:
+                job = await asyncio.wait_for(self._job_queue.get(), timeout=1.0)
+            except asyncio.TimeoutError:
+                continue
+
+            self.logger.info(
+                "worker_processing_job",
+                worker_id=worker_id,
+                job_id=job.id,
+                url=job.url,
+            )
+
+            try:
+                result = self.process_with_retry(job)
+                self._job_results[job.id] = result
+
+                if result.status == JobStatus.COMPLETED:
+                    self.logger.info(
+                        "worker_job_completed",
+                        worker_id=worker_id,
+                        job_id=job.id,
+                        url=job.url,
+                    )
+                else:
+                    self.logger.error(
+                        "worker_job_failed",
+                        worker_id=worker_id,
+                        job_id=job.id,
+                        url=job.url,
+                        error=result.error,
+                    )
+            except Exception as e:
+                self.logger.error(
+                    "worker_unexpected_error",
+                    worker_id=worker_id,
+                    job_id=job.id,
+                    error=str(e),
+                )
+            finally:
+                self._job_queue.task_done()
+
+        self.logger.info("worker_stopped", worker_id=worker_id)
+
+    async def start(self) -> None:
+        """Start background worker tasks."""
+        if self._running:
+            return
+
+        self._running = True
+        for i in range(self._num_workers):
+            task = asyncio.create_task(self._worker_loop(i))
+            self._workers.append(task)
+
+        self.logger.info("processor_started", num_workers=self._num_workers)
+
+    async def stop(self) -> None:
+        """Stop background worker tasks."""
+        self._running = False
+
+        for worker in self._workers:
+            worker.cancel()
+
+        if self._workers:
+            await asyncio.gather(*self._workers, return_exceptions=True)
+
+        self._workers.clear()
+        self.logger.info("processor_stopped")
+
+    def get_job_status(self, job_id: str) -> Optional[ProcessingJob]:
+        """Get the current status of a submitted job by ID."""
+        return self._job_results.get(job_id)

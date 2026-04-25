@@ -104,33 +104,25 @@ class TelegramListener:
             "urls_extracted", message_id=message_id, url_count=len(urls), urls=urls
         )
 
-        # Process each URL
+        # Submit each URL for async processing
         for url in urls:
             try:
                 job = ProcessingJob(url=url, message_id=message_id)
-                result = self.processor.process_with_retry(job)
+                job_id = await self.processor.submit(job)
 
-                if result.status.value == "completed":
-                    self.logger.info(
-                        "url_processed",
-                        url=url,
-                        message_id=message_id,
-                        article_id=result.id,
-                    )
-                else:
-                    self.logger.error(
-                        "url_processing_failed",
-                        url=url,
-                        message_id=message_id,
-                        error=result.error,
-                    )
+                self.logger.info(
+                    "url_submitted_for_processing",
+                    url=url,
+                    message_id=message_id,
+                    job_id=job_id,
+                )
 
-                # Mark message as processed
+                # Mark message as processed immediately (processing is async)
                 self._processed_message_ids.add(message_id)
 
             except Exception as e:
                 self.logger.exception(
-                    "unexpected_error_processing_url",
+                    "unexpected_error_submitting_url",
                     url=url,
                     message_id=message_id,
                     error=str(e),

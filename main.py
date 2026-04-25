@@ -84,6 +84,8 @@ class ContentAggregator:
             loop.add_signal_handler(sig, self._signal_handler)
 
         try:
+            # Start processor background workers
+            await self.processor.start()
             # Run the Telegram listener
             await self.listener.run()
         except Exception as e:
@@ -104,6 +106,8 @@ class ContentAggregator:
 
         if self.listener:
             await self.listener.stop()
+        if self.processor:
+            await self.processor.stop()
 
         logger.info("shutdown_complete")
 

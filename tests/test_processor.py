@@ -1,5 +1,6 @@
 """Tests for URL processor."""
 
+import asyncio
 import pytest
 from datetime import datetime, UTC
 
@@ -197,3 +198,220 @@ class TestURLProcessor:
 
         assert result.status == JobStatus.COMPLETED
         mock_process.assert_called_once()
+
+
+class TestURLProcessorQueue:
+    """Test suite for URLProcessor queue-based API."""
+
+    @pytest.fixture
+    def mock_settings(self, mocker):
+        """Create mock settings."""
+        settings = mocker.MagicMock()
+        settings.telegram_channel_id = "@testchannel"
+        return settings
+
+    @pytest.fixture
+    def mock_storage(self, mocker):
+        """Create mock storage backend."""
+        return mocker.MagicMock()
+
+    @pytest.fixture
+    def mock_extractor(self, mocker):
+        """Create mock content extractor."""
+        return mocker.MagicMock()
+
+    @pytest.fixture
+    def mock_summarizer(self, mocker):
+        """Create mock summarizer."""
+        return mocker.MagicMock()
+
+    @pytest.fixture
+    def processor(self, mock_settings, mock_storage, mock_extractor, mock_summarizer):
+        """Create URLProcessor with mocked dependencies."""
+        return URLProcessor(
+            settings=mock_settings,
+            storage=mock_storage,
+            extractor=mock_extractor,
+            summarizer=mock_summarizer,
+        )
+
+    @pytest.mark.asyncio
+    async def test_submit_returns_job_id(self, processor, mock_storage):
+        """Test submitting a job returns the job ID."""
+        mock_storage.list_articles.return_value = []
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+
+        job_id = await processor.submit(job)
+
+        assert job_id == job.id
+        assert processor.get_job_status(job_id) is not None
+
+    @pytest.mark.asyncio
+    async def test_submit_adds_job_to_queue(self, processor, mock_storage):
+        """Test that submit adds job to the queue."""
+        mock_storage.list_articles.return_value = []
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+
+        await processor.submit(job)
+
+        assert processor._job_queue.qsize() == 1
+
+    @pytest.mark.asyncio
+    async def test_submit_multiple_jobs(self, processor, mock_storage):
+        """Test submitting multiple jobs."""
+        mock_storage.list_articles.return_value = []
+        jobs = [
+            ProcessingJob(url=f"https://example.com/article{i}", message_id=i)
+            for i in range(5)
+        ]
+
+        for job in jobs:
+            await processor.submit(job)
+
+        assert processor._job_queue.qsize() == 5
+
+    @pytest.mark.asyncio
+    async def test_start_creates_workers(self, processor):
+        """Test starting creates worker tasks."""
+        await processor.start()
+
+        assert processor._running is True
+        assert len(processor._workers) == 1
+
+    @pytest.mark.asyncio
+    async def test_start_idempotent(self, processor):
+        """Test that starting twice does nothing."""
+        await processor.start()
+        initial_workers = len(processor._workers)
+
+        await processor.start()
+
+        assert len(processor._workers) == initial_workers
+
+    @pytest.mark.asyncio
+    async def test_stop_cancels_workers(self, processor):
+        """Test stopping cancels workers."""
+        await processor.start()
+        await processor.stop()
+
+        assert processor._running is False
+        assert len(processor._workers) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_job_status_returns_none_for_unknown(self, processor):
+        """Test getting status of unknown job returns None."""
+        result = processor.get_job_status("nonexistent-id")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_job_status_returns_job_after_submit(
+        self, processor, mock_storage
+    ):
+        """Test getting status of submitted job returns the job."""
+        mock_storage.list_articles.return_value = []
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+        job_id = await processor.submit(job)
+
+        result = processor.get_job_status(job_id)
+
+        assert result is not None
+        assert result.id == job.id
+        assert result.url == job.url
+
+    @pytest.mark.asyncio
+    async def test_worker_processes_job(
+        self, processor, mock_extractor, mock_summarizer, mock_storage, mocker
+    ):
+        """Test worker processes jobs from queue."""
+        mock_extractor.extract.return_value = ExtractedContent(
+            url="https://example.com/article",
+            title="Test Title",
+            content="Test content",
+            extraction_method="trafilatura",
+        )
+
+        mock_summarizer.summarize.return_value = SummaryResult(
+            text="Summary text",
+            model="gpt-3.5-turbo",
+            generated_at=datetime.now(UTC).isoformat(),
+        )
+
+        mock_storage.list_articles.return_value = []
+
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+        await processor.submit(job)
+        await processor.start()
+
+        # Wait for processing with timeout
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            result = processor.get_job_status(job.id)
+            if result and result.status in (JobStatus.COMPLETED, JobStatus.FAILED):
+                break
+        else:
+            await processor.stop()
+            assert False, "Job did not complete in time"
+
+        await processor.stop()
+
+        assert result.status == JobStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_worker_handles_job_failure(
+        self, processor, mock_extractor, mock_storage, mocker
+    ):
+        """Test worker handles failed jobs gracefully."""
+        mock_extractor.extract.side_effect = ExtractionError("Failed to extract")
+        mock_storage.list_articles.return_value = []
+
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+        await processor.submit(job)
+        await processor.start()
+
+        # Wait for processing with timeout
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            result = processor.get_job_status(job.id)
+            if result and result.status == JobStatus.FAILED:
+                break
+        else:
+            await processor.stop()
+            assert False, "Job did not fail in time"
+
+        await processor.stop()
+
+        assert result.status == JobStatus.FAILED
+        assert "Failed to extract" in result.error
+
+    @pytest.mark.asyncio
+    async def test_custom_workers_count(
+        self, mock_settings, mock_storage, mock_extractor, mock_summarizer
+    ):
+        """Test creating processor with custom number of workers."""
+        processor = URLProcessor(
+            settings=mock_settings,
+            storage=mock_storage,
+            extractor=mock_extractor,
+            summarizer=mock_summarizer,
+            workers=3,
+        )
+
+        await processor.start()
+
+        assert len(processor._workers) == 3
+        await processor.stop()
+
+    @pytest.mark.asyncio
+    async def test_custom_queue_size(
+        self, mock_settings, mock_storage, mock_extractor, mock_summarizer
+    ):
+        """Test creating processor with custom queue size."""
+        processor = URLProcessor(
+            settings=mock_settings,
+            storage=mock_storage,
+            extractor=mock_extractor,
+            summarizer=mock_summarizer,
+            max_queue_size=10,
+        )
+
+        assert processor._job_queue.maxsize == 10
