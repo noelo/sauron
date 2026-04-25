@@ -7,6 +7,7 @@ extracts and summarizes content, and stores results in JSON files.
 """
 
 import asyncio
+import logging
 import signal
 import sys
 from pathlib import Path
@@ -18,7 +19,10 @@ from src.storage import JSONStorageBackend
 from src.url_processor import URLProcessor
 from src.telegram_listener import TelegramListener
 
+logging.basicConfig(level=logging.DEBUG)
+
 # Configure structured logging
+logging.getLogger().setLevel(logging.DEBUG)
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
