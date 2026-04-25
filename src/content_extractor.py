@@ -3,7 +3,7 @@
 import json
 import re
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Callable, List, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -156,11 +156,11 @@ from src.url_handlers import (
 class WebContentExtractor:
     """Primary content extractor with domain-specific handlers and fallback."""
 
-    def __init__(self):
+    def __init__(self, github_urls_cb: Callable[[list[str]], None] | None = None):
         # Import handlers here to avoid circular import
         # Register handlers in order of priority
         self.handlers: List[URLHandler] = [
-            TwitterHandler(),
+            TwitterHandler(github_urls_cb=github_urls_cb),
             GitHubHandler(),
             RedditHandler(),
             FallbackHandler(),  # Always last - matches everything

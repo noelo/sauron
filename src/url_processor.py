@@ -48,6 +48,7 @@ class ProcessingJob:
     error: Optional[str] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    parent_job_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert job to dictionary for serialization."""
@@ -86,7 +87,11 @@ class URLProcessor:
     ):
         self.settings = settings
         self.storage = storage
-        self.extractor = extractor or WebContentExtractor()
+        self._found_github_urls: list[str] = []
+        self._current_job_id: str = ""
+        self.extractor = extractor or WebContentExtractor(
+            github_urls_cb=self._on_github_urls_found
+        )
         self.summarizer = summarizer or create_summarizer(settings)
         self.logger = structlog.get_logger(__name__)
         self._job_queue = asyncio.Queue(maxsize=max_queue_size)
@@ -94,6 +99,10 @@ class URLProcessor:
         self._running = False
         self._num_workers = workers
         self._job_results: Dict[str, ProcessingJob] = {}
+
+    def _on_github_urls_found(self, urls: list[str]) -> None:
+        """Callback from TwitterHandler when GitHub URLs are found in tweet content."""
+        self._found_github_urls.extend(urls)
 
     def process_single(self, job: ProcessingJob) -> ProcessingJob:
         """Process a single URL through the complete pipeline."""
@@ -312,6 +321,9 @@ class URLProcessor:
                 url=job.url,
             )
 
+            self._current_job_id = job.id
+            self._found_github_urls.clear()
+
             try:
                 result = self.process_with_retry(job)
                 self._job_results[job.id] = result
@@ -323,6 +335,16 @@ class URLProcessor:
                         job_id=job.id,
                         url=job.url,
                     )
+
+                    # Submit GitHub URLs found in content as child jobs
+                    for github_url in self._found_github_urls:
+                        child_job = ProcessingJob(
+                            url=github_url,
+                            message_id=job.message_id,
+                            parent_job_id=job.id,
+                        )
+                        await self.submit(child_job)
+
                 else:
                     self.logger.error(
                         "worker_job_failed",

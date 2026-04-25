@@ -236,6 +236,96 @@ class TestTwitterHandler:
         assert result.orig_link is None
         assert "Just a regular tweet" in result.content
 
+    def test_twitter_handler_calls_callback_with_github_urls(self, handler, mocker):
+        """Test that handler invokes callback with detected GitHub URLs."""
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": {
+                "text": "Check out https://github.com/owner/repo1 cool!",
+                "author": {"name": "Test User"},
+            },
+            "thread": [],
+            "code": 200,
+        }
+        mocker.patch("requests.get", return_value=mock_response)
+
+        callback_urls = []
+        handler._github_urls_cb = callback_urls.append
+
+        result = handler.handle("https://x.com/user/status/123")
+
+        assert callback_urls == [["https://github.com/owner/repo1"]]
+        assert result.orig_link == "https://github.com/owner/repo1"
+
+    def test_twitter_handler_callback_no_github_urls(self, handler, mocker):
+        """Test that callback is not invoked when no GitHub URLs found."""
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": {
+                "text": "No github links here at all",
+                "author": {"name": "Test User"},
+            },
+            "thread": [],
+            "code": 200,
+        }
+        mocker.patch("requests.get", return_value=mock_response)
+
+        callback_urls = []
+        handler._github_urls_cb = callback_urls.append
+
+        result = handler.handle("https://x.com/user/status/456")
+
+        assert callback_urls == []
+        assert result.orig_link is None
+
+    def test_twitter_handler_callback_multiple_github_urls(self, handler, mocker):
+        """Test that callback receives all unique GitHub URLs."""
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": {
+                "text": "Repo https://github.com/a/b is cool",
+                "author": {"name": "Test User"},
+            },
+            "thread": [
+                {"text": "Repo https://github.com/a/b is cool"},
+                {
+                    "text": "Also check https://github.com/x/y/issues and https://github.com/c/d"
+                },
+            ],
+            "code": 200,
+        }
+        mocker.patch("requests.get", return_value=mock_response)
+
+        callback_urls = []
+        handler._github_urls_cb = callback_urls.append
+
+        result = handler.handle("https://x.com/user/status/789")
+
+        # Should find 3 unique URLs: a/b, x/y/issues, c/d
+        assert len(callback_urls[0]) == 3
+        assert "https://github.com/a/b" in callback_urls[0]
+        assert "https://github.com/x/y/issues" in callback_urls[0]
+        assert "https://github.com/c/d" in callback_urls[0]
+
+    def test_twitter_handler_no_callback_when_none(self, handler, mocker):
+        """Test that handler works when no callback is set."""
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": {
+                "text": "Check https://github.com/owner/repo",
+                "author": {"name": "Test User"},
+            },
+            "thread": [],
+            "code": 200,
+        }
+        mocker.patch("requests.get", return_value=mock_response)
+
+        handler._github_urls_cb = None
+
+        result = handler.handle("https://x.com/user/status/100")
+
+        assert result.orig_link == "https://github.com/owner/repo"
+
 
 class TestRedditHandler:
     """Test suite for RedditHandler."""

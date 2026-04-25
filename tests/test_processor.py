@@ -415,3 +415,104 @@ class TestURLProcessorQueue:
         )
 
         assert processor._job_queue.maxsize == 10
+
+    @pytest.mark.asyncio
+    async def test_worker_submits_github_child_jobs(
+        self, processor, mock_extractor, mock_summarizer, mock_storage, mocker
+    ):
+        """Test worker submits GitHub URLs found in content as child jobs."""
+        mock_extractor.extract.return_value = ExtractedContent(
+            url="https://example.com/article",
+            title="Test Title",
+            content="Test content",
+            extraction_method="trafilatura",
+        )
+
+        mock_summarizer.summarize.return_value = SummaryResult(
+            text="Summary text",
+            model="gpt-3.5-turbo",
+            generated_at=datetime.now(UTC).isoformat(),
+        )
+
+        mock_storage.list_articles.return_value = []
+
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+        await processor.submit(job)
+
+        # Inject GitHub URLs via process_with_retry hook to simulate callback
+        original_pwr = processor.process_with_retry
+
+        def patched_pwr(job):
+            processor._found_github_urls = [
+                "https://github.com/owner/repo",
+                "https://github.com/user/project/issues",
+            ]
+            return original_pwr(job)
+
+        mocker.patch.object(processor, "process_with_retry", side_effect=patched_pwr)
+
+        await processor.start()
+
+        # Wait for parent job to complete
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            result = processor.get_job_status(job.id)
+            if result and result.status == JobStatus.COMPLETED:
+                break
+        else:
+            await processor.stop()
+            assert False, "Parent job did not complete in time"
+
+        # Wait for child jobs to be submitted
+        for _ in range(20):
+            await asyncio.sleep(0.1)
+            if processor._job_queue.qsize() >= 2:
+                break
+        else:
+            await processor.stop()
+            assert False, "Child jobs were not submitted in time"
+
+        await processor.stop()
+
+        # Verify child jobs were submitted
+        child_jobs = [
+            j for j in processor._job_results.values() if j.parent_job_id == job.id
+        ]
+        assert len(child_jobs) == 2
+        assert "https://github.com/owner/repo" in [j.url for j in child_jobs]
+        assert "https://github.com/user/project/issues" in [j.url for j in child_jobs]
+
+    @pytest.mark.asyncio
+    async def test_worker_does_not_submit_child_jobs_on_failure(
+        self, processor, mock_extractor, mock_storage, mocker
+    ):
+        """Test worker does not submit child jobs when parent job fails."""
+        mock_extractor.extract.side_effect = ExtractionError("Failed to extract")
+        mock_storage.list_articles.return_value = []
+
+        job = ProcessingJob(url="https://example.com/article", message_id=123)
+        await processor.submit(job)
+
+        processor._found_github_urls = ["https://github.com/owner/repo"]
+
+        await processor.start()
+
+        # Wait for processing with timeout
+        for _ in range(50):
+            await asyncio.sleep(0.1)
+            result = processor.get_job_status(job.id)
+            if result and result.status == JobStatus.FAILED:
+                break
+        else:
+            await processor.stop()
+            assert False, "Job did not fail in time"
+
+        await asyncio.sleep(0.2)
+
+        # Verify no child jobs were submitted
+        child_jobs = [
+            j for j in processor._job_results.values() if j.parent_job_id == job.id
+        ]
+        assert len(child_jobs) == 0
+
+        await processor.stop()
