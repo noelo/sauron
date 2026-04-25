@@ -136,6 +136,7 @@ class TestTwitterHandler:
         Verifies the extracted text starts with 'LLM Knowledge Bases'
         """
         result = handler.handle("https://x.com/karpathy/status/2039805659525644595")
+        print(result)
 
         # Verify extraction succeeded
         assert result.domain == "x.com"
