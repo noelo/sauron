@@ -2,10 +2,11 @@
 
 import asyncio
 import re
+import time
 from typing import Callable, List, Optional
 
 import structlog
-from telegram import Update
+from telegram import Bot, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -219,3 +220,161 @@ class TelegramListener:
             await self.application.shutdown()
 
         self.logger.info("telegram_listener_stopped")
+
+    def _chat_id_to_int(self, channel: str) -> int:
+        """Convert a channel ID/username string to an integer chat_id for Telegram API."""
+        cleaned = channel.lstrip("@").strip()
+        try:
+            return int(cleaned)
+        except ValueError:
+            raise ValueError(
+                f"Cannot resolve channel '{channel}' to a chat_id. "
+                "Please provide a numeric channel/group ID."
+            )
+
+    async def _resolve_chat_id(self, bot: Bot) -> Optional[int]:
+        """Resolve the configured channel to a numeric chat_id.
+        Returns None if resolution is not possible (bot not a member).
+        """
+        try:
+            return self._chat_id_to_int(self.settings.telegram_channel_id)
+        except ValueError:
+            try:
+                chat = await bot.get_chat(self.settings.telegram_channel_id)
+                return chat.id
+            except Exception:
+                self.logger.warning(
+                    "batch_cannot_resolve_channel",
+                    channel=self.settings.telegram_channel_id,
+                )
+                print(
+                    "⚠️  Cannot resolve channel to numeric ID. "
+                    "Processing messages from all chats."
+                )
+                return None
+
+    async def batch_import(self, timeout: int = 60) -> dict:
+        """Fetch all historical messages from Telegram and process URLs.
+        Fetch phase is bounded by timeout. Returns a summary dict.
+        """
+        self.logger.info(
+            "batch_import_started",
+            channel=self.settings.telegram_channel_id,
+            timeout=timeout,
+        )
+        print(f"\n🔄 Batch import started (timeout: {timeout}s)...")
+
+        # Pre-populate processed IDs from storage log
+        last_processed_mid = self.processor.storage.get_log().get(
+            "last_processed_message_id", 0
+        )
+        self.logger.info("batch_skip_processed", last_message_id=last_processed_mid)
+
+        bot = Bot(token=self.settings.telegram_bot_token)
+
+        stats = {
+            "total_messages": 0,
+            "with_urls": 0,
+            "no_urls": 0,
+            "urls_submitted": 0,
+            "skipped_already_processed": 0,
+            "channels_seen": 0,
+            "timed_out": False,
+        }
+
+        chat_id = await self._resolve_chat_id(bot)
+        offset = 0
+        start_time = time.monotonic()
+
+        try:
+            first_fetch = True
+            while True:
+                elapsed = time.monotonic() - start_time
+                if elapsed >= timeout:
+                    stats["timed_out"] = True
+                    print(f"\n⏱️  Fetch timeout reached ({timeout}s). Stopping fetch.")
+                    break
+
+                # Use timeout=0 to only fetch pending updates (no long-poll wait)
+                updates = await asyncio.wait_for(
+                    bot.get_updates(offset=offset, limit=100, timeout=0),
+                    timeout=5,
+                )
+
+                if not updates:
+                    if first_fetch:
+                        print(
+                            "\n⚠️  No pending updates found. If you need historical "
+                            "messages, note that the Telegram Bot API does not support "
+                            "chat history retrieval — only messages that arrive after "
+                            "the bot is added are available, and must be fetched before "
+                            "any other bot instance polls them."
+                        )
+                    break
+                first_fetch = False
+
+                for update in updates:
+                    if update.update_id >= offset:
+                        offset = update.update_id + 1
+
+                    if update.message is None:
+                        continue
+
+                    if chat_id is not None:
+                        if update.message.chat_id != chat_id:
+                            stats["channels_seen"] += 1
+                            continue
+
+                    message_id = update.message.message_id
+                    stats["total_messages"] += 1
+
+                    if message_id <= last_processed_mid:
+                        stats["skipped_already_processed"] += 1
+                        continue
+
+                    if message_id in self._processed_message_ids:
+                        stats["skipped_already_processed"] += 1
+                        continue
+
+                    text = update.message.text or ""
+                    urls = self._extract_urls(text)
+
+                    if urls:
+                        stats["with_urls"] += 1
+                        for url in urls:
+                            try:
+                                job = ProcessingJob(url=url, message_id=message_id)
+                                await self.processor.submit(job)
+                                stats["urls_submitted"] += 1
+                            except Exception as e:
+                                self.logger.exception(
+                                    "batch_submit_error",
+                                    url=url,
+                                    error=str(e),
+                                )
+                        self._processed_message_ids.add(message_id)
+                    else:
+                        stats["no_urls"] += 1
+
+        finally:
+            try:
+                await bot.close()
+            except Exception:
+                pass
+
+        print(f"\n{'=' * 50}")
+        print(f"📊 Batch Import Summary:")
+        print(f"{'=' * 50}")
+        print(f"  Total messages fetched: {stats['total_messages']}")
+        print(f"  Messages with URLs:     {stats['with_urls']}")
+        print(f"  Messages without URLs:  {stats['no_urls']}")
+        print(f"  URLs submitted:         {stats['urls_submitted']}")
+        print(f"  Already processed:      {stats['skipped_already_processed']}")
+        if stats["timed_out"]:
+            print(f"  ⏱️  Fetch was stopped by timeout.")
+        else:
+            print(f"  ✅ All messages fetched.")
+        print(f"{'=' * 50}\n")
+
+        self.logger.info("batch_import_complete", **stats)
+        return stats

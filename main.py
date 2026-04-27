@@ -6,6 +6,7 @@ AI-powered content aggregator that receives URLs from Telegram,
 extracts and summarizes content, and stores results in JSON files.
 """
 
+import argparse
 import asyncio
 import logging
 import signal
@@ -47,12 +48,14 @@ logger = structlog.get_logger(__name__)
 class ContentAggregator:
     """Main application class."""
 
-    def __init__(self):
+    def __init__(self, batch: bool = False, batch_timeout: int = 60):
         self.settings = get_settings()
         self.storage: JSONStorageBackend = None
         self.processor: URLProcessor = None
         self.listener: TelegramListener = None
         self._shutdown_event = asyncio.Event()
+        self._batch = batch
+        self._batch_timeout = batch_timeout
 
     def initialize(self) -> None:
         """Initialize all components."""
@@ -86,11 +89,27 @@ class ContentAggregator:
         try:
             # Start processor background workers
             await self.processor.start()
-            # Run the Telegram listener
-            await self.listener.run()
+
+            if self._batch:
+                await self._run_batch()
+            else:
+                await self.listener.run()
         except Exception as e:
             logger.exception("error_running_aggregator", error=str(e))
             raise
+
+    async def _run_batch(self) -> None:
+        """Run in batch mode: fetch all messages, process, then exit."""
+        logger.info("batch_mode_started", timeout=self._batch_timeout)
+        total_fetched = await self.listener.batch_import(timeout=self._batch_timeout)
+        if not total_fetched:
+            logger.info("batch_no_messages_found")
+
+        print("\n\n⏳ Waiting for pending jobs to complete...")
+        await self.processor._job_queue.join()
+
+        print("✅ All jobs complete. Shutting down...")
+        await self.shutdown()
 
     def _signal_handler(self) -> None:
         """Handle shutdown signals."""
@@ -114,12 +133,26 @@ class ContentAggregator:
 
 def main():
     """Main entry point."""
+    parser = argparse.ArgumentParser(description="Content Aggregator")
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="Import all historical messages from Telegram, process, then exit",
+    )
+    parser.add_argument(
+        "--batch-timeout",
+        type=int,
+        default=60,
+        help="Seconds to spend fetching messages in batch mode (default: 60)",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("Content Aggregator")
     print("=" * 60)
     print()
 
-    app = ContentAggregator()
+    app = ContentAggregator(batch=args.batch, batch_timeout=args.batch_timeout)
 
     try:
         app.initialize()
@@ -130,7 +163,7 @@ def main():
         logger.exception("fatal_error", error=str(e))
         print(f"\nFatal error: {e}")
         sys.exit(1)
-    finally:
+    if not args.batch:
         print("Goodbye!")
 
 
